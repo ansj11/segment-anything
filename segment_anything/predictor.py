@@ -55,7 +55,7 @@ class SamPredictor:
         # Transform the image to the form expected by the model
         input_image = self.transform.apply_image(image)
         input_image_torch = torch.as_tensor(input_image, device=self.device)
-        input_image_torch = input_image_torch.permute(2, 0, 1).contiguous()[None, :, :, :]
+        input_image_torch = input_image_torch.permute(2, 0, 1).contiguous()[None, :, :, :]  # NCHW
 
         self.set_torch_image(input_image_torch, image.shape[:2])
 
@@ -81,7 +81,7 @@ class SamPredictor:
             and transformed_image.shape[1] == 3
             and max(*transformed_image.shape[2:]) == self.model.image_encoder.img_size
         ), f"set_torch_image input must be BCHW with long side {self.model.image_encoder.img_size}."
-        self.reset_image()
+        self.reset_image()  # Resets the currently set image
 
         self.original_size = original_image_size
         self.input_size = tuple(transformed_image.shape[-2:])
@@ -223,7 +223,7 @@ class SamPredictor:
             points=points,
             boxes=boxes,
             masks=mask_input,
-        )
+        )   # 生成提示embedding
 
         # Predict masks
         low_res_masks, iou_predictions = self.model.mask_decoder(

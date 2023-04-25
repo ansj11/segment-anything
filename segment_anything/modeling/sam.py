@@ -164,11 +164,11 @@ class Sam(nn.Module):
     def preprocess(self, x: torch.Tensor) -> torch.Tensor:
         """Normalize pixel values and pad to a square input."""
         # Normalize colors
-        x = (x - self.pixel_mean) / self.pixel_std
+        x = (x - self.pixel_mean) / self.pixel_std  # normalize
 
         # Pad
         h, w = x.shape[-2:]
         padh = self.image_encoder.img_size - h
         padw = self.image_encoder.img_size - w
-        x = F.pad(x, (0, padw, 0, padh))
+        x = F.pad(x, (0, padw, 0, padh))    # pad in right and down to get square
         return x

@@ -60,14 +60,14 @@ class ImageEncoderViT(nn.Module):
             stride=(patch_size, patch_size),
             in_chans=in_chans,
             embed_dim=embed_dim,
-        )
+        )   # patch to vector
 
         self.pos_embed: Optional[nn.Parameter] = None
         if use_abs_pos:
             # Initialize absolute positional embedding with pretrain image size.
             self.pos_embed = nn.Parameter(
                 torch.zeros(1, img_size // patch_size, img_size // patch_size, embed_dim)
-            )
+            )   # 1xmxnx768
 
         self.blocks = nn.ModuleList()
         for i in range(depth):
@@ -82,7 +82,7 @@ class ImageEncoderViT(nn.Module):
                 rel_pos_zero_init=rel_pos_zero_init,
                 window_size=window_size if i not in global_attn_indexes else 0,
                 input_size=(img_size // patch_size, img_size // patch_size),
-            )
+            )   # transformer
             self.blocks.append(block)
 
         self.neck = nn.Sequential(
@@ -169,12 +169,12 @@ class Block(nn.Module):
         # Window partition
         if self.window_size > 0:
             H, W = x.shape[1], x.shape[2]
-            x, pad_hw = window_partition(x, self.window_size)
+            x, pad_hw = window_partition(x, self.window_size)   # reorg to (NHW)wwC
 
         x = self.attn(x)
         # Reverse window partition
         if self.window_size > 0:
-            x = window_unpartition(x, self.window_size, pad_hw, (H, W))
+            x = window_unpartition(x, self.window_size, pad_hw, (H, W)) # back to NHWC
 
         x = shortcut + x
         x = x + self.mlp(self.norm2(x))
@@ -223,12 +223,12 @@ class Attention(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, H, W, _ = x.shape
-        # qkv with shape (3, B, nHead, H * W, C)
-        qkv = self.qkv(x).reshape(B, H * W, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
-        # q, k, v with shape (B * nHead, H * W, C)
+        # qkv with shape (3, B, nHead, H * W, C) just linear last dim
+        qkv = self.qkv(x).reshape(B, H * W, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4) # 3xBxhxHWxC
+        # q, k, v with shape (B * nHead, H * W, C) use q*k
         q, k, v = qkv.reshape(3, B * self.num_heads, H * W, -1).unbind(0)
 
-        attn = (q * self.scale) @ k.transpose(-2, -1)
+        attn = (q * self.scale) @ k.transpose(-2, -1)   # (B*nHead, H*W, C)x(B*nHead, C, H*W)=(B*nHead, H*W, H*W)
 
         if self.use_rel_pos:
             attn = add_decomposed_rel_pos(attn, q, self.rel_pos_h, self.rel_pos_w, (H, W), (H, W))
@@ -259,8 +259,8 @@ def window_partition(x: torch.Tensor, window_size: int) -> Tuple[torch.Tensor, T
         x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
     Hp, Wp = H + pad_h, W + pad_w
 
-    x = x.view(B, Hp // window_size, window_size, Wp // window_size, window_size, C)
-    windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
+    x = x.view(B, Hp // window_size, window_size, Wp // window_size, window_size, C)    # reorg NHwWwC
+    windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)    # (N*HW)wwC
     return windows, (Hp, Wp)
 
 

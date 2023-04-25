@@ -97,6 +97,6 @@ class ResizeLongestSide:
         """
         scale = long_side_length * 1.0 / max(oldh, oldw)
         newh, neww = oldh * scale, oldw * scale
-        neww = int(neww + 0.5)
+        neww = int(neww + 0.5)  # 按照长边进行等比例缩放
         newh = int(newh + 0.5)
         return (newh, neww)
